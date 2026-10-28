@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # 1. POSTGRESQL (Datos Operativos)
+  # ==========================================
+  postgres-nomina-db:
+    image: postgres:16-alpine
+    container_name: postgres-nomina
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: db_empleados
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_nomina_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d db_empleados" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ==========================================
+  # 2. SQL SERVER (Marcaciones / Asistencia)
+  # ==========================================
+  sqlserver-asistencia-db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver-asistencia
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourPassword123!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_asistencia_data:/var/opt/mssql
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1536M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourPassword123!' -C -Q 'SELECT 1' || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================
+  # 3. ORACLE DATABASE (Cálculo PL/SQL)
+  # ==========================================
+  oracle-nomina-db:
+    image: gvenzl/oracle-free:23.4-slim
+    container_name: oracle-nomina
+    restart: unless-stopped
+    environment:
+      ORACLE_PASSWORD: oracle123
+      APP_USER: app_nomina
+      APP_USER_PASSWORD: oracle123
+    ports:
+      - "1521:1521"
+    volumes:
+      - oracle_nomina_data:/opt/oracle/oradata
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2048M
+        reservations:
+          cpus: '0.5'
+          memory: 1024M
+    healthcheck:
+      test: [ "CMD-SHELL", "healthcheck.sh" ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ==========================================
+  # 4. MONGODB (Recibos / Documentos JSON)
+  # ==========================================
+  mongodb-boletas-db:
+    image: mongo:7.0
+    container_name: mongodb-boletas
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: db_boletas
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_boletas_data:/data/db
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh --eval 'db.runCommand(\"ping\").ok' --quiet" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# ==========================================
+# REDES PERSONALIZADAS
+# ==========================================
+networks:
+  default:
+    name: nomina-net
+    driver: bridge
+
+# ==========================================
+# VOLÚMENES PERSISTENTES
+# ==========================================
+volumes:
+  postgres_nomina_data:
+    driver: local
+  sqlserver_asistencia_data:
+    driver: local
+  oracle_nomina_data:
+    driver: local
+  mongodb_boletas_data:
+    driver: local
